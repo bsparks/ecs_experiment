@@ -1,0 +1,198 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <title>pixi.js example 24</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #333;
+        }
+    </style>
+    <script src="lib/pixi.dev.js"></script>
+    <script src="lib/box2d.min.js"></script>
+    <script src="lib/ces-browser.min.js"></script>
+
+</head>
+<body>
+    <script>
+
+    // DEFINITIONS
+
+    var PhysicsBody = CES.Component.extend({
+        name: 'physicsBody',
+        init: function(x, y, width, height, density) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+            this.density = density;
+
+            // store state items like references to the body
+            this._volatile = {
+                body: null
+            };
+        }
+    });
+
+    var Sprite = CES.Component.extend({
+        name: 'sprite',
+        init: function(image, anchor) {
+            this.image = image;
+            this.anchor = anchor;
+
+            this._volatile = {
+                sprite: null
+            };
+        }
+    });
+
+    var PhysicsSystem = CES.System.extend({
+        init: function() {
+            this._super();
+
+            // setup axis-aligned bounding box
+            var worldAABB = new b2AABB();
+            worldAABB.minVertex.Set(-1000, -1000);
+            worldAABB.maxVertex.Set(1000, 1000);
+            // define gravity
+            var gravity = new b2Vec2(0, 300);
+            // body can sleep
+            var doSleep = true;
+            // create world
+            this.physicsWorld = new b2World(worldAABB, gravity, doSleep);
+            // frame duration
+            this.timeStep = 1 / 60;
+            // how many iteration for collisions calculations
+            this.iteration = 1;
+        },
+        addedToWorld: function(world) {
+            var physicsWorld = this.physicsWorld;
+
+            world.entityAdded('physicsBody').add(function(entity) {
+                var physicsBodyComponent = entity.getComponent('physicsBody'),
+                    body,
+                    width = physicsBodyComponent.width,
+                    height = physicsBodyComponent.height,
+                    density = physicsBodyComponent.density,
+                    x = physicsBodyComponent.x,
+                    y = physicsBodyComponent.y;
+
+                var shapeDef = new b2BoxDef();
+                shapeDef.extents.Set(width * 0.5, height * 0.5);
+                var bodyDef = new b2BodyDef();
+                bodyDef.AddShape(shapeDef);
+                bodyDef.position.Set(x, y);
+                if (density) {
+                    shapeDef.density = density;
+                    shapeDef.friction = 0.4;
+                    shapeDef.restitution = 1.2;
+                    bodyDef.rotation = 0.8;
+                }
+                body = physicsBodyComponent._volatile.body = physicsWorld.CreateBody(bodyDef);
+            });
+
+            this._super(world);
+        },
+        update: function() {
+            this.physicsWorld.Step(this.timeStep, this.iteration);
+
+            // sync up sprites
+            var entities = this.world.getEntities('sprite', 'physicsBody');
+            entities.forEach(function(entity) {
+                var sprite = entity.getComponent('sprite')._volatile.sprite,
+                    body = entity.getComponent('physicsBody')._volatile.body;
+
+                sprite.position = body.GetCenterPosition();
+                sprite.rotation = body.GetRotation();
+            });
+        }
+    });
+
+    var GraphicsSystem = CES.System.extend({
+        init: function(width, height, background) {
+            this._super();
+
+            // create an new instance of a pixi stage
+            this.stage = new PIXI.Stage(background);
+
+            // create a renderer instance
+            this.renderer = new PIXI.autoDetectRenderer(width, height);
+        },
+        addedToWorld: function(world) {
+            this._super(world);
+
+            var system = this;
+
+            // add the renderer view element to the DOM
+            document.body.appendChild(system.renderer.view);
+
+            world.entityAdded('sprite').add(function(entity) {
+                var spriteComponent = entity.getComponent('sprite'),
+                    texture = PIXI.Texture.fromImage(spriteComponent.image),
+                    sprite;
+
+                sprite = spriteComponent._volatile.sprite = new PIXI.Sprite(texture);
+
+                sprite.anchor.x = spriteComponent.anchor.x;
+                sprite.anchor.y = spriteComponent.anchor.y;
+
+                system.stage.addChild(sprite);
+            });
+
+            world.entityRemoved('sprite').add(function(entity) {
+                // TODO: handle sprite removal
+            });
+
+        },
+        update: function() {
+            // render the stage
+            this.renderer.render(this.stage);
+        }
+    });
+
+    // ==================================================================================
+
+    var cesWorld = new CES.World();
+
+    // system order is important!
+    var physicsSystem = new PhysicsSystem();
+    var graphicsSystem = new GraphicsSystem(400, 300, 0x004466);
+    cesWorld.addSystem(physicsSystem);
+    cesWorld.addSystem(graphicsSystem);
+
+    var bunny = new CES.Entity();
+    bunny.addComponent(new Sprite('/assets/bunny.png', {x: 0.5, y: 0.5}));
+    bunny.addComponent(new PhysicsBody(200, 150, 25, 37, 0.5));
+
+    var leftWall = new CES.Entity();
+    leftWall.addComponent(new Sprite('/assets/bricks.png', {x: 0.5, y: 0.5}));
+    leftWall.addComponent(new PhysicsBody(5, 150, 10, 300));
+
+    var rightWall = new CES.Entity();
+    rightWall.addComponent(new Sprite('/assets/bricks.png', {x: 0.5, y: 0.5}));
+    rightWall.addComponent(new PhysicsBody(395, 150, 10, 300));
+
+    var ground = new CES.Entity();
+    ground.addComponent(new Sprite('/assets/grass.png', {x: 0.5, y: 0.5}));
+    ground.addComponent(new PhysicsBody(200, 292, 400, 16));
+
+    cesWorld.addEntity(ground);
+    cesWorld.addEntity(leftWall);
+    cesWorld.addEntity(rightWall);
+    cesWorld.addEntity(bunny);
+
+
+    // THE LOOP
+    requestAnimFrame(animate);
+
+    function animate() {
+        requestAnimFrame(animate);
+
+        cesWorld.update();
+    }
+
+    </script>
+
+    </body>
+</html>
