@@ -1,9 +1,10 @@
+this.Engine = this.Engine || {};
+
 (function(CES) {
 
-var Engine = Engine || {};
-Engine.Systems = Engine.Systems || {};
+    Engine.Systems = Engine.Systems || {};
 
-var GraphicsSystem = CES.System.extend({
+    var GraphicsSystem = CES.System.extend({
         init: function(width, height, background) {
             this._super();
 
@@ -44,7 +45,7 @@ var GraphicsSystem = CES.System.extend({
             this.renderer.render(this.stage);
         }
     });
-    
+
     Engine.Systems.GraphicsSystem = GraphicsSystem;
 
 })(window.CES);

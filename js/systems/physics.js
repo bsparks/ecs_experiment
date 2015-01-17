@@ -1,5 +1,6 @@
+this.Engine = this.Engine || {};
+
 (function(CES) {
-    var Engine = Engine || {};
     Engine.Systems = Engine.Systems || {};
 
     var PhysicsSystem = CES.System.extend({

@@ -1,5 +1,5 @@
 
-Engine = Engine || {};
+this.Engine = this.Engine || {};
 
 (function(CES) {
     var Game = function() {
@@ -7,12 +7,14 @@ Engine = Engine || {};
     };
 
     Game.prototype.run = function() {
+        var world = this.world;
+        
         requestAnimFrame(animate);
 
         function animate() {
             requestAnimFrame(animate);
 
-            this.world.update();
+            world.update();
         }
     };
 
